@@ -177,13 +177,13 @@ class MDP:
     def leader_reward(self):
         leader_reward = {}
         for st in self.states:
-            self.reward[st] = {}
+            leader_reward[st] = {}
             if st in self.F:
                 for act in self.actions:
-                    self.reward[st][act] = 1.0
+                    leader_reward[st][act] = 10.0
             else:
                 for act in self.actions:
-                    self.reward[st][act] = 0.0
+                    leader_reward[st][act] = 0.0
         return leader_reward
         
         
@@ -194,9 +194,13 @@ class MDP:
                 core += pro * V[self.states.index(st_)]
         return core
     
-    def get_policy_entropy(self, reward):
+    def get_policy_entropy(self, reward, flag):
         threshold = 0.0001
         self.update_reward(reward)
+        if flag == 0:
+            reward = self.reward_l
+        else:
+            reward = self.reward
         V = self.init_value()
         V1 = V.copy()
         policy = {}
@@ -278,6 +282,11 @@ class MDP:
         else:
             return reward[st][act]
         return r
+    
+    def theta_evaluation(self, reward, policy):
+        V = np.zeros(len(self.states) * len(self.actions))
+        
+        return V
 
 def checkstotrans(trans):
     for st in trans.keys():

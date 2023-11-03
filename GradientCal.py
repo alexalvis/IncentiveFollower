@@ -20,8 +20,8 @@ class GC:
         self.x = np.zeros(self.x_size)
         self.lr_x = lr_x
         self.tau = self.mdp.tau
-        self.policy = policy
-        self.policy_m = self.convert_policy()
+        self.policy = policy_convert(policy, mdp.actions)           #self.policy in the form of pi[st]= [pro1, pro2, ...]
+        self.policy_m = self.convert_policy(policy)          #self.policy_m is a vector.
         self.P_matrix = self.construct_P()
         self.epsilon = epsilon
         self.modify_list = modify_list
@@ -34,28 +34,30 @@ class GC:
     def J_func(self):
         reward_s = self.reward_sidepay()
         V, policy = self.mdp.get_policy_entropy(reward_s)
+        #Need to evaluate defender's reward using this policy
         J = self.mdp.init.dot(V) + self.h_func()
         return J, policy
 
     def h_func(self):
         #Define the h function
-        return -self.weight * np.sum(self.x)
+        return -self.weight * np.sum(abs(self.x))
     
     def construct_P(self):
         P = np.zeros((self.x_size, self.x_size))
         for i in range(self.st_len):
             for j in range(self.act_len):
-                for next_st, pro in self.mdp.transition[self.states[i]][self.actions[j]].items():
-                    next_index = self.mdp.states.index(next_st)
-                    P[i * self.act_len + j][next_index * self.act_len : (next_index + 1) * self.act_len] = pro
+                for next_st, pro in self.mdp.transition[self.mdp.states[i]][self.mdp.actions[j]].items():
+                    if next_st != 'Sink':
+                        next_index = self.mdp.states.index(next_st)
+                        P[i * self.act_len + j][next_index * self.act_len : (next_index + 1) * self.act_len] = pro
         return P
     
-    def convert_policy(self):
+    def convert_policy(self, policy):
         policy_m = np.zeros(self.x_size)
         i = 0
         for st in self.mdp.states:
             for act in self.mdp.actions:
-                policy_m[i] = self.policy[st][act]
+                policy_m[i] = policy[st][act]
                 i += 1
         return policy_m
     
@@ -64,7 +66,10 @@ class GC:
         #This is a linear sum of x
         grad = np.zeros(self.x_size)
         for m in self.modify_list:
-            grad[m] = self.weight
+            if self.x[m] >= 0:
+                grad[m] = self.weight
+            else:
+                self.x[m] = -self.weight
         return -grad
     
     def dJ_dtheta(self, Sample):
@@ -93,9 +98,9 @@ class GC:
         Pi = self.policy[st]
         for i in range(self.act_len):
             if i == act_index:
-                grad[st_index * self.act_len + act_index] = 1/self.tau * (1 - Pi[act])
+                grad[st_index * self.act_len + act_index] = 1/self.tau * (1 - Pi[i])
             else:
-                grad[st_index * self.act_len + act_index] = 1/self.tau * (0 - Pi[act])
+                grad[st_index * self.act_len + act_index] = 1/self.tau * (0 - Pi[i])
         #grad is a vector x_size * 1
         return grad
             
@@ -116,18 +121,31 @@ class GC:
         r_indicator[index] = 1
         dtheta_old = dtheta.copy()
         delta = np.inf
+        itcount_d = 0
         while delta > self.epsilon:
+            # print(f"{itcount_d} iterations")
+            # print(self.policy_m)
+            # print(self.policy_m * dtheta)
             dtheta = r_indicator + self.mdp.gamma * self.P_matrix.dot(self.policy_m * dtheta)
+            # print(dtheta)
             delta = np.max(abs(dtheta - dtheta_old))
             dtheta_old = dtheta
+            itcount_d += 1
         return dtheta
         
     
-    def dJ_dx(self):
+    def dJ_dx(self, N):
         dh_dx = self.dh_dx()
+        # print(dh_dx)
+        self.sample.generate_traj(N, self.policy)
         dJ_dtheta = self.dJ_dtheta(self.sample)
+        # print(dJ_dtheta)
         dtheta_dx = self.dtheta_dx()
-        dJ_dx = dJ_dtheta * dtheta_dx + dh_dx
+        # print(dtheta_dx)
+        dJ_dtheta_x = dJ_dtheta.dot(dtheta_dx)
+        # print(dJ_dtheta_x)
+        # print(dtheta_dx[:,48])
+        dJ_dx = dJ_dtheta_x + dh_dx
         self.update_x(dJ_dx)
         
         
@@ -135,20 +153,27 @@ class GC:
         self.x += self.lr_x * gradient
         
     def update_policy(self, policy):
+        self.policy_m = self.convert_policy(policy)
         self.policy = policy_convert(policy, self.mdp.actions)
-        self.policy_m = self.convert_policy()
         self.sample.generate_traj(100, self.policy)
         
-    def SGD(self, epsilon):
+    def SGD(self, N):
         delta = np.inf
         J_old, policy = self.J_func()
-        self.update_policy(policys)
-        while delta > epsilon:
-            self.dJ_dx()
+        self.update_policy(policy)
+        itcount = 1
+        while delta > self.epsilon:
+            self.dJ_dx(N)
             J_new, policy = self.J_func()
+            print(J_new)
             #update it to new policy
             self.update_policy(policy)
             delta = abs(J_new - J_old)
+            # print(f"{itcount}th iteration")
+            itcount += 1
+            if itcount % 100 == 0:
+                print(f'{itcount}th iteration, x is {self.x}')
+        return self.x
 
 def policy_convert(pi, action_list):
     #Convert a policy from pi[st][act] = pro to pi[st] = [pro1, pro2, ...]
@@ -172,5 +197,7 @@ if __name__ == "__main__":
     V, policy = mdp.get_policy_entropy([])
     lr_x = 0.01   #The learning rate of side-payment
     modifylist = [48]  #The action reward you can modify
-    epsilon = 0.001   #Convergence threshold
-    weight = 0.1
+    epsilon = 0.000001   #Convergence threshold
+    weight = 0
+    GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist,weight)
+    x_res = GradientCal.SGD(N = 100)
