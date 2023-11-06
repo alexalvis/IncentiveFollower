@@ -180,12 +180,11 @@ class MDP:
             leader_reward[st] = {}
             if st in self.F:
                 for act in self.actions:
-                    leader_reward[st][act] = 10.0
+                    leader_reward[st][act] = 1.0
             else:
                 for act in self.actions:
                     leader_reward[st][act] = 0.0
-        return leader_reward
-        
+        return leader_reward    
         
     def getcore(self, V, st, act):
         core = 0
@@ -194,12 +193,32 @@ class MDP:
                 core += pro * V[self.states.index(st_)]
         return core
     
-    def get_policy_entropy(self, reward, flag):
+    def policy_evaluation(self, reward, flag, policy):
         threshold = 0.0001
-        self.update_reward(reward)
         if flag == 0:
             reward = self.reward_l
         else:
+            self.update_reward(reward)
+            reward = self.reward
+        V = self.init_value()
+        delta = np.inf
+        while delta > threshold:
+            V1 = V.copy()
+            for st in self.states:
+                temp = 0
+                for act in self.actions:
+                    if act in policy[st].keys():
+                        temp += policy[st][act] * (reward[st][act] + self.gamma * self.getcore(V1, st, act))
+                V[self.states.index(st)] = temp
+            delta = np.max(abs(V-V1))
+        return V
+        
+    def get_policy_entropy(self, reward, flag):
+        threshold = 0.0001
+        if flag == 0:
+            reward = self.reward_l
+        else:
+            self.update_reward(reward)
             reward = self.reward
         V = self.init_value()
         V1 = V.copy()
@@ -284,10 +303,29 @@ class MDP:
         return r
     
     def theta_evaluation(self, reward, policy):
-        V = np.zeros(len(self.states) * len(self.actions))
-        
-        return V
+        threshold = 0.0001
+        dtheta = np.zeros(len(self.states) * len(self.actions))
+        dtheta_old = dtheta.copy()
+        delta = np.inf
+        while delta > threshold:
+            for i in range(len(self.states)):
+                for j in range(len(self.actions)):
+                    dtheta[i * len(self.actions) + j] = reward[i * len(self.actions) + j] + self.gamma * self.evaluation_core(i, j, dtheta_old, policy)
+            delta = np.max(abs(dtheta-dtheta_old))
+            dtheta_old = dtheta.copy()
+        return dtheta
 
+    def evaluation_core(self, i, j, dtheta, policy):
+        core = 0
+        st = self.states[i]
+        act = self.actions[j]
+        for next_s, pro in self.transition[st][act].items():
+            if next_s != "Sink":
+                next_s_index = self.states.index(next_s)
+                for a_index in range(len(self.actions)):
+                    core += pro * policy[next_s][a_index] * dtheta[next_s_index * len(self.actions) + a_index]
+        return core
+        
 def checkstotrans(trans):
     for st in trans.keys():
         for act in trans[st].keys():
@@ -321,4 +359,4 @@ def create_mdp():
 
 if __name__ == "__main__":
     mdp = create_mdp()
-    V, policy = mdp.get_policy_entropy([])
+    V, policy = mdp.get_policy_entropy([], 1)

@@ -18,6 +18,7 @@ class GC:
         self.x_size = self.st_len * self.act_len
         self.base_reward = reward2list(mdp.reward, mdp.states, mdp.actions)
         self.x = np.zeros(self.x_size)
+        self.x[48] = 2
         self.lr_x = lr_x
         self.tau = self.mdp.tau
         self.policy = policy_convert(policy, mdp.actions)           #self.policy in the form of pi[st]= [pro1, pro2, ...]
@@ -33,9 +34,11 @@ class GC:
     
     def J_func(self):
         reward_s = self.reward_sidepay()
-        V, policy = self.mdp.get_policy_entropy(reward_s)
+        V, policy = self.mdp.get_policy_entropy(reward_s, flag = 1)
+        
         #Need to evaluate defender's reward using this policy
-        J = self.mdp.init.dot(V) + self.h_func()
+        V_leader = self.mdp.policy_evaluation([], 0, policy)
+        J = self.mdp.init.dot(V_leader) + self.h_func()
         return J, policy
 
     def h_func(self):
@@ -127,25 +130,30 @@ class GC:
             # print(self.policy_m)
             # print(self.policy_m * dtheta)
             dtheta = r_indicator + self.mdp.gamma * self.P_matrix.dot(self.policy_m * dtheta)
-            # print(dtheta)
             delta = np.max(abs(dtheta - dtheta_old))
             dtheta_old = dtheta
             itcount_d += 1
+        dtheta_ = self.mdp.theta_evaluation(r_indicator, self.policy)
+#        print(dtheta)
+#        print(dtheta_)
         return dtheta
         
     
     def dJ_dx(self, N):
         dh_dx = self.dh_dx()
         # print(dh_dx)
+#        print(self.policy)
         self.sample.generate_traj(N, self.policy)
         dJ_dtheta = self.dJ_dtheta(self.sample)
+        print("dJ_dtheta:", dJ_dtheta)
         # print(dJ_dtheta)
         dtheta_dx = self.dtheta_dx()
-        # print(dtheta_dx)
+        print("dtheta_dx:", dtheta_dx[:,48])
         dJ_dtheta_x = dJ_dtheta.dot(dtheta_dx)
         # print(dJ_dtheta_x)
         # print(dtheta_dx[:,48])
         dJ_dx = dJ_dtheta_x + dh_dx
+        print("dJ_dx:", dJ_dx)
         self.update_x(dJ_dx)
         
         
@@ -165,10 +173,11 @@ class GC:
         while delta > self.epsilon:
             self.dJ_dx(N)
             J_new, policy = self.J_func()
-            print(J_new)
+            print("J_new:", J_new)
             #update it to new policy
             self.update_policy(policy)
             delta = abs(J_new - J_old)
+            print("delta:", delta)
             # print(f"{itcount}th iteration")
             itcount += 1
             if itcount % 100 == 0:
@@ -194,10 +203,11 @@ def reward2list(reward, states, actions):
 
 if __name__ == "__main__":
     mdp = MDP.create_mdp()
-    V, policy = mdp.get_policy_entropy([])
-    lr_x = 0.01   #The learning rate of side-payment
+    V, policy = mdp.get_policy_entropy([], 0)
+    lr_x = 1000000000   #The learning rate of side-payment
     modifylist = [48]  #The action reward you can modify
     epsilon = 0.000001   #Convergence threshold
     weight = 0
     GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist,weight)
     x_res = GradientCal.SGD(N = 100)
+    print(x_res)
