@@ -18,7 +18,7 @@ class GC:
         self.x_size = self.st_len * self.act_len
         self.base_reward = reward2list(mdp.reward, mdp.states, mdp.actions)
         self.x = np.zeros(self.x_size)
-        self.x[48] = 2
+        self.x[48] = 5
         self.lr_x = lr_x
         self.tau = self.mdp.tau
         self.policy = policy_convert(policy, mdp.actions)           #self.policy in the form of pi[st]= [pro1, pro2, ...]
@@ -82,7 +82,9 @@ class GC:
         N = len(Sample.trajlist)
         grad = 0
         for rho in Sample.trajlist:
+            # print("trajectory is:", rho)
             grad += self.drho_dtheta(rho) * self.mdp.reward_traj(rho, 0)
+            # print("grad is:", grad)
         return 1/N * grad
     
     def drho_dtheta(self, rho):
@@ -99,12 +101,14 @@ class GC:
         st_index = self.mdp.states.index(st)
         act_index = self.mdp.actions.index(act)
         Pi = self.policy[st]
+        # print("Pi:", Pi)
         for i in range(self.act_len):
             if i == act_index:
-                grad[st_index * self.act_len + act_index] = 1/self.tau * (1 - Pi[i])
+                grad[st_index * self.act_len + i] = 1/self.tau * (1.0 - Pi[i])
             else:
-                grad[st_index * self.act_len + act_index] = 1/self.tau * (0 - Pi[i])
+                grad[st_index * self.act_len + i] = 1/self.tau * (0.0 - Pi[i])
         #grad is a vector x_size * 1
+
         return grad
             
     def dtheta_dx(self):
@@ -133,27 +137,26 @@ class GC:
             delta = np.max(abs(dtheta - dtheta_old))
             dtheta_old = dtheta
             itcount_d += 1
-        dtheta_ = self.mdp.theta_evaluation(r_indicator, self.policy)
-#        print(dtheta)
-#        print(dtheta_)
+        # dtheta_ = self.mdp.theta_evaluation(r_indicator, self.policy)
+        # print("x is", self.x)
+        # print("Matrix_result:", dtheta)
+        # print("Evaluation result:", dtheta_)
         return dtheta
         
     
     def dJ_dx(self, N):
         dh_dx = self.dh_dx()
         # print(dh_dx)
-#        print(self.policy)
+        # print(self.policy)
         self.sample.generate_traj(N, self.policy)
         dJ_dtheta = self.dJ_dtheta(self.sample)
-        print("dJ_dtheta:", dJ_dtheta)
+        # print("dJ_dtheta:", dJ_dtheta)
         # print(dJ_dtheta)
         dtheta_dx = self.dtheta_dx()
-        print("dtheta_dx:", dtheta_dx[:,48])
+        # print("dtheta_dx:", dtheta_dx[:,48])
         dJ_dtheta_x = dJ_dtheta.dot(dtheta_dx)
-        # print(dJ_dtheta_x)
-        # print(dtheta_dx[:,48])
         dJ_dx = dJ_dtheta_x + dh_dx
-        print("dJ_dx:", dJ_dx)
+        # print("dJ_dx:", dJ_dx)
         self.update_x(dJ_dx)
         
         
@@ -178,6 +181,7 @@ class GC:
             self.update_policy(policy)
             delta = abs(J_new - J_old)
             print("delta:", delta)
+            J_old = J_new
             # print(f"{itcount}th iteration")
             itcount += 1
             if itcount % 100 == 0:
@@ -204,10 +208,11 @@ def reward2list(reward, states, actions):
 if __name__ == "__main__":
     mdp = MDP.create_mdp()
     V, policy = mdp.get_policy_entropy([], 0)
-    lr_x = 1000000000   #The learning rate of side-payment
+    #Learning rate influence the result from the convergence aspect. Small learning rate wll make the convergence criteria satisfy too early.
+    lr_x = 0.1  #The learning rate of side-payment
     modifylist = [48]  #The action reward you can modify
     epsilon = 0.000001   #Convergence threshold
-    weight = 0
+    weight = 0.1
     GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist,weight)
-    x_res = GradientCal.SGD(N = 100)
+    x_res = GradientCal.SGD(N = 500)
     print(x_res)

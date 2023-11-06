@@ -235,13 +235,19 @@ class MDP:
         ):
             V1 = V.copy()
             for st in self.states:
+                Q_theta = []
                 for act in self.actions:
                     core = (self.reward[st][act] + self.gamma * self.getcore(V1, st, act)) / self.tau
-                    Q[st][act] = np.exp(core)
-                Q_s = sum(Q[st].values())
-                for act in self.actions:
-                    policy[st][act] = Q[st][act] / Q_s
-                V[self.states.index(st)] = self.tau * np.log(Q_s)
+                    # Q[st][act] = np.exp(core)
+                    Q_theta.append(core)
+                Q_sub = Q_theta - np.max(Q_theta)
+                p = np.exp(Q_sub)/np.exp(Q_sub).sum()
+                # Q_s = sum(Q[st].values())
+                # for act in self.actions:
+                    # policy[st][act] = Q[st][act] / Q_s
+                for i in range(len(self.actions)):
+                    policy[st][self.actions[i]] = p[i]
+                V[self.states.index(st)] = self.tau * np.log(np.exp(Q_theta).sum())
             itcount += 1
         return V, policy
     
