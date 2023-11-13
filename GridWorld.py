@@ -17,10 +17,12 @@ class GridWorld:
         self.IDS = IDS
         self.init = self.getInit()
         self.transition = self.gettrans()
+        self.update_reward()
         self.reward_l = self.leader_reward()
         self.gamma = gamma
         self.tau = tau
-        
+        self.nextSt_list, self.nextPro_list = self.stotrans_list()
+
     def getInit(self):
         I = np.zeros(len(self.states))
         I[12] = 1
@@ -141,7 +143,7 @@ class GridWorld:
                     self.reward[st][act] = 0.0
     
     def policy_evaluation(self, reward, flag, policy):
-        threshold = 0.0001
+        threshold = 0.00001
         if flag == 0:
             reward = self.reward_l
         else:
@@ -218,16 +220,18 @@ class GridWorld:
     
     def generate_sample(self, pi):
         traj = []
-        st = np.random.choice(self.states, 1, p = self.init)[0]
-        # st_index = self.states.index(st)
-        act = np.random.choice(self.actions, 1, p = pi[st])[0]
+        st_index = np.random.choice(len(self.states), 1, p = self.init)[0]
+        st = self.states[st_index]
+        act_index = np.random.choice(len(self.actions), 1, p = pi[st])[0]
+        act = self.actions[act_index]
         traj.append(st)
         traj.append(act)
         next_st = self.one_step_transition(st, act)
         while next_st != "Sink":
             st = next_st
-            st_index = self.states.index(st)
-            act = np.random.choice(self.actions, 1, p = pi[st])[0]
+            # st_index = self.states.index(st)
+            act_index = np.random.choice(len(self.actions), 1, p = pi[st])[0]
+            act = self.actions[act_index]
             traj.append(st)
             traj.append(act)
             next_st = self.one_step_transition(st, act)
@@ -237,8 +241,8 @@ class GridWorld:
     def one_step_transition(self, st, act):
         st_list = self.nextSt_list[st][act]
         pro_list = self.nextPro_list[st][act]
-        next_st = np.random.choice(st_list, 1, p = pro_list)[0]
-        return next_st
+        next_st = np.random.choice(len(st_list), 1, p = pro_list)[0]
+        return st_list[next_st]
         
     def reward_traj(self, traj, flag):
         #Flag is used to identify whether it is leader's reward or follower
@@ -305,15 +309,19 @@ def createGridWorldBarrier_new2():
     IDSlist = [(0, 4), (1, 2), (2, 3), (3, 3), (5, 4)]
     gridworld = GridWorld(6, 6, 0.1, fakelist, goallist, IDSlist, barrierlist, gamma, tau)
     reward = []
-    V, policy = gridworld.get_policy_entropy(reward, 1)
-    V_def = gridworld.policy_evaluation(reward, 0, policy)
-    return gridworld, V_def, policy    
-
+    # V, policy = gridworld.get_policy_entropy(reward, 1)
+    # V_def = gridworld.policy_evaluation(reward, 0, policy)
+    # return gridworld, V_def, policy
+    return gridworld
 
     
     
 if __name__ == "__main__":
-    gridworld, V_def, policy = createGridWorldBarrier_new2()
+    # gridworld, V_def, policy = createGridWorldBarrier_new2()
+    gridworld = createGridWorldBarrier_new2()
+    print(gridworld.reward)
+    # for st in gridworld.F:
+    #     print(gridworld.states.index(st))
     # Z = gridworld.stVisitFre(policy)
     # Z_act = gridworld.stactVisitFre(policy)
     # print(V_def[51])

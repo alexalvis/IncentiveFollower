@@ -9,6 +9,7 @@ import numpy as np
 import MDP
 import math
 import Sample
+import GridWorld as GW
 
 class GC:
     def __init__(self, mdp, lr_x, policy, epsilon, modify_list, weight):
@@ -18,7 +19,8 @@ class GC:
         self.x_size = self.st_len * self.act_len
         self.base_reward = reward2list(mdp.reward, mdp.states, mdp.actions)
         self.x = np.zeros(self.x_size)
-        self.x[48] = 5
+        self.x[40] = 1.5
+        self.x[116] = 2
         self.lr_x = lr_x
         self.tau = self.mdp.tau
         self.policy = policy_convert(policy, mdp.actions)           #self.policy in the form of pi[st]= [pro1, pro2, ...]
@@ -205,14 +207,29 @@ def reward2list(reward, states, actions):
             reward_s.append(reward[st][act])
     return np.array(reward_s)
 
-if __name__ == "__main__":
+def MDP_example():
+    #This is the function used to generate small transition MDP example.
     mdp = MDP.create_mdp()
-    V, policy = mdp.get_policy_entropy([], 0)
+    V, policy = mdp.get_policy_entropy([], 1)
     #Learning rate influence the result from the convergence aspect. Small learning rate wll make the convergence criteria satisfy too early.
-    lr_x = 0.1  #The learning rate of side-payment
+    lr_x = 0.2 #The learning rate of side-payment
     modifylist = [48]  #The action reward you can modify
     epsilon = 0.000001   #Convergence threshold
-    weight = 0.1
-    GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist,weight)
+    weight = 0
+    GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight)
     x_res = GradientCal.SGD(N = 500)
     print(x_res)
+
+def GridW_example():
+    mdp = GW.createGridWorldBarrier_new2()
+    V, policy = mdp.get_policy_entropy([], 1)
+    lr_x = 0.1
+    modifylist = [40, 116]
+    epsilon = 1e-6
+    weight = 0
+    GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight)
+    x_res = GradientCal.SGD(N = 500)
+    print(x_res)
+if __name__ == "__main__":
+    # MDP_example()
+    GridW_example()
