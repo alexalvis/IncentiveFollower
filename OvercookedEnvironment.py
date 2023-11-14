@@ -395,12 +395,20 @@ class OvercookedEnvironment:
         for state in self.states:
             counter_state = state[1]
             for action in self.actions:
-                if "warm" in counter_state and action == "deliver":
-                    reward[state][action] = self.warm_food_delivered_reward
                 if "cold" in counter_state and action == "deliver":
                     reward[state][action] = self.cold_food_delivered_reward
-                # TODO HOW TO ENCODE REWARD FOR RANDOM DELIVERY SINCE IT CAN BE THE RESULT OF ANY ACTION?
+                if "warm" in counter_state and action == "deliver":
+                    reward[state][action] = self.warm_food_delivered_reward
+                # Add reward based on probability of random delivery by waiter
                 # R(s,a,s') -> R(s,a) = p * R(s,a,s')
+                num_of_plates_with_food = sum([1 for plate in counter_state if plate == "warm" or plate == "cold"])
+                for plate in counter_state:
+                    if plate == "warm":
+                        reward[state][action] += (self.deliver_probability / num_of_plates_with_food)\
+                                                 * self.warm_food_delivered_reward
+                    elif plate == "cold":
+                        reward[state][action] += (self.deliver_probability / num_of_plates_with_food)\
+                                                 * self.cold_food_delivered_reward
         return reward
 
 
