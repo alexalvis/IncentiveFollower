@@ -24,6 +24,33 @@ class SampleTraj:
         #Reset the generated samples
         self.trajlist = []
 
+    def approx_policy(self):
+        st_count = {st: 0 for st in self.mdp.states}
+        st_act_count = {}
+        for st in self.mdp.states:
+            st_act_count[st] = {}
+            for act in self.mdp.actions:
+                st_act_count[st][act] = 0
+
+        for traj in self.trajlist:
+            st = traj[0]
+            act = traj[1]
+            while len(traj) >=3:
+                st_count[st] += 1
+                st_act_count[st][act] += 1
+                traj = traj[2:]
+        policy = {}
+        for st in self.mdp.states:
+            policy[st] = {}
+            if st_count[st] == 0:
+                for act in self.mdp.actions:
+                    policy[st][act] = 0
+            else:
+                for act in self.mdp.actions:
+                    policy[st][act] = st_act_count[st][act] / st_count[st]
+        return policy
+
+
 def test():
     mdp = MDP.create_mdp()
     sample = SampleTraj(mdp)
