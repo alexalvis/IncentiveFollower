@@ -12,16 +12,16 @@ import Sample
 import GridWorld as GW
 
 class GC:
-    def __init__(self, mdp, lr_x, policy, epsilon, modify_list, weight):
+    def __init__(self, mdp, lr_x, policy, epsilon, modify_list, weight, approximate_flag):
         self.mdp = mdp
         self.st_len = len(mdp.states)
         self.act_len = len(mdp.actions)
         self.x_size = self.st_len * self.act_len
         self.base_reward = reward2list(mdp.reward, mdp.states, mdp.actions)
         self.x = np.zeros(self.x_size)
-        # self.x[48] = 1.4
-        self.x[40] = 2
-        self.x[116] = 1
+        self.x[48] = 1.1
+        # self.x[40] = 2
+        # self.x[116] = 1
         self.lr_x = lr_x
         self.tau = self.mdp.tau
         self.policy = policy_convert(policy, mdp.actions)           #self.policy in the form of pi[st]= [pro1, pro2, ...]
@@ -31,6 +31,8 @@ class GC:
         self.modify_list = modify_list
         self.weight = weight
         self.sample = Sample.SampleTraj(self.mdp)
+        self.approximate_flag = approximate_flag
+        #0 is not using approximate_policy, 1 is using approximate_policy
         
     def reward_sidepay(self):
         return self.base_reward + self.x
@@ -147,11 +149,11 @@ class GC:
         return dtheta
         
     
-    def dJ_dx(self, N):
+    def dJ_dx(self, N, policy):
         dh_dx = self.dh_dx()
         # print(dh_dx)
         # print(self.policy)
-        self.sample.generate_traj(N, self.policy)
+        self.sample.generate_traj(N, policy)
         dJ_dtheta = self.dJ_dtheta(self.sample)
         # print("dJ_dtheta:", dJ_dtheta)
         # print(dJ_dtheta)
@@ -167,22 +169,33 @@ class GC:
         self.x += self.lr_x * gradient
         self.x = np.maximum(self.x, 0)
         
-    def update_policy(self, policy):
-        self.policy_m = self.convert_policy(policy)
-        self.policy = policy_convert(policy, self.mdp.actions)
-        self.sample.generate_traj(100, self.policy)
+    def update_policy(self, policy, N):
+        if self.approximate_flag:
+            #Leader uses approximate policy
+            policy = policy_convert(policy, self.mdp.actions)
+            self.sample.generate_traj(N, policy)
+            policy_ = self.sample.approx_policy()
+            self.policy_m = self.convert_policy(policy_)
+            self.policy = policy_convert(policy_, self.mdp.actions)
+        else:
+            #Leader uses exact policy
+            self.policy_m = self.convert_policy(policy)
+            self.policy = policy_convert(policy, self.mdp.actions)
+            self.sample.generate_traj(N, self.policy)
         
     def SGD(self, N):
         delta = np.inf
         J_old, policy = self.J_func()
-        self.update_policy(policy)
+        policy_c = policy_convert(policy, self.mdp.actions)
+        self.update_policy(policy, N)
         itcount = 1
         while delta > self.epsilon:
-            self.dJ_dx(N)
+            self.dJ_dx(N, policy_c)
             J_new, policy = self.J_func()
+            policy_c = policy_convert(policy, self.mdp.actions)
             print("J_new:", J_new)
             #update it to new policy
-            self.update_policy(policy)
+            self.update_policy(policy, N)
             delta = abs(J_new - J_old)
             print("delta:", delta)
             J_old = J_new
@@ -217,9 +230,10 @@ def MDP_example():
     lr_x = 0.02 #The learning rate of side-payment
     modifylist = [48]  #The action reward you can modify
     epsilon = 1e-6   #Convergence threshold
-    weight = 0.4
-    GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight)
-    x_res = GradientCal.SGD(N = 500)
+    weight = 0  #weight of the cost
+    approximate_flag = 0  #Whether we use trajectory to approximate policy. 0 represents exact policy, 1 represents approximate policy
+    GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
+    x_res = GradientCal.SGD(N = 200)
     print(x_res)
 
 def GridW_example():
@@ -229,9 +243,10 @@ def GridW_example():
     modifylist = [40, 116]
     epsilon = 1e-6
     weight = 0.15
-    GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight)
-    x_res = GradientCal.SGD(N = 500)
+    approximate_flag = 0
+    GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
+    x_res = GradientCal.SGD(N = 200)
     print(x_res)
 if __name__ == "__main__":
-    # MDP_example()
-    GridW_example()
+    MDP_example()
+    # GridW_example()

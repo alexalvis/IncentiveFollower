@@ -219,6 +219,7 @@ class GridWorld:
         return transition_list, transition_pro
     
     def generate_sample(self, pi):
+        #pi here should be pi[st] = [pro1, pro2, ...]
         traj = []
         st_index = np.random.choice(len(self.states), 1, p = self.init)[0]
         st = self.states[st_index]
