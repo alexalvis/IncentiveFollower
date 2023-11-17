@@ -412,6 +412,114 @@ class OvercookedEnvironment:
         return reward
 
 
+"""
+Add some essential functions, starting from here.
+"""
+    def getcore(self, V, st, act):
+        core = 0
+        for st_, pro in self.transition[st][act].items():
+            if st_ != "Sink":
+                core += pro * V[self.states.index(st_)]
+        return core
+
+    def get_policy_entropy(self, reward, flag):
+        threshold = 0.0001
+        if flag == 0:
+            reward = self.reward_l
+        else:
+            self.update_reward(reward)
+            reward = self.reward
+        V = self.init_value()
+        V1 = V.copy()
+        policy = {}
+        Q = {}
+        for st in self.states:
+            policy[st] = {}
+            Q[st] = {}
+        itcount = 1
+        while (
+                itcount == 1
+                or np.inner(np.array(V) - np.array(V1), np.array(V) - np.array(V1))
+                > threshold
+        ):
+            V1 = V.copy()
+            for st in self.states:
+                Q_theta = []
+                for act in self.actions:
+                    core = (self.reward[st][act] + self.gamma * self.getcore(V1, st, act)) / self.tau
+                    # Q[st][act] = np.exp(core)
+                    Q_theta.append(core)
+                Q_sub = Q_theta - np.max(Q_theta)
+                p = np.exp(Q_sub) / np.exp(Q_sub).sum()
+                # Q_s = sum(Q[st].values())
+                # for act in self.actions:
+                # policy[st][act] = Q[st][act] / Q_s
+                for i in range(len(self.actions)):
+                    policy[st][self.actions[i]] = p[i]
+                V[self.states.index(st)] = self.tau * np.log(np.exp(Q_theta).sum())
+            itcount += 1
+        return V, policy
+
+    def stotrans_list(self):
+        transition_list = {}
+        transition_pro = {}
+        for st in self.transition:
+            transition_list[st] = {}
+            transition_pro[st] = {}
+            for act in self.transition[st]:
+                transition_list[st][act] = {}
+                transition_pro[st][act] = {}
+                st_list = []
+                pro_list = []
+                for st_, pro in self.transition[st][act].items():
+                    st_list.append(st_)
+                    pro_list.append(pro)
+                transition_list[st][act] = st_list
+                transition_pro[st][act] = pro_list
+        return transition_list, transition_pro
+
+    def generate_sample(self, pi):
+        traj = []
+        st_index = np.random.choice(len(self.states), 1, p=self.init)[0]
+        st = self.states[st_index]
+        act_index = np.random.choice(len(self.actions), 1, p=pi[st])[0]
+        act = self.actions[act_index]
+        traj.append(st)
+        traj.append(act)
+        next_st = self.one_step_transition(st, act)
+        while next_st != "Sink":
+            st = next_st
+            # st_index = self.states.index(st)
+            act_index = np.random.choice(len(self.actions), 1, p=pi[st])[0]
+            act = self.actions[act_index]
+            traj.append(st)
+            traj.append(act)
+            next_st = self.one_step_transition(st, act)
+        traj.append(next_st)
+        return traj
+
+    def one_step_transition(self, st, act):
+        st_list = self.nextSt_list[st][act]
+        pro_list = self.nextPro_list[st][act]
+        next_st = np.random.choice(len(st_list), 1, p=pro_list)[0]
+        return st_list[next_st]
+
+    def reward_traj(self, traj, flag):
+        # Flag is used to identify whether it is leader's reward or follower
+        # Flag = 0 represents leader, Flag = 1 represents follower
+        if flag == 0:
+            reward = self.reward_l
+        else:
+            reward = self.reward
+        st = traj[0]
+        act = traj[1]
+        if len(traj) >= 4:
+            r = reward[st][act] + self.gamma * self.reward_traj(traj[2:], flag)
+        else:
+            return reward[st][act]
+        return r
+
+
 def initial_MDP(stove_size, counter_size):
     GridW = OvercookedEnvironment(stove_size, counter_size)
     reward = GridW.reward_Goal_Obstacle()  # Initialize reward function
