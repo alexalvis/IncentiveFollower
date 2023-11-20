@@ -33,12 +33,14 @@ class SampleTraj:
                 st_act_count[st][act] = 0
 
         for traj in self.trajlist:
-            st = traj[0]
-            act = traj[1]
-            while len(traj) >=3:
+            while len(traj) >= 3:
+                st = traj[0]
+                act = traj[1]
                 st_count[st] += 1
                 st_act_count[st][act] += 1
                 traj = traj[2:]
+        # print("state count is:", st_count)
+        # print("state_act_count is:", st_act_count)
         policy = {}
         for st in self.mdp.states:
             policy[st] = {}
