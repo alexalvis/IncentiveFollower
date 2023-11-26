@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jun 29 16:27:12 2023
+Created on Sun Oct 29 13:46:42 2023
 
-@author: hma2
+@author: matthewScohen and hma2
 """
+import random
 
 import numpy as np
 import itertools
@@ -24,6 +25,8 @@ class OvercookedEnvironment:
         :param warm_food_delivered_reward: Leader's reward when warm food is delivered
         :param cold_food_delivered_reward: Leader's reward when cold food is delivered
         """
+        self.tau = 1
+        self.gamma = 0.9
         self.stove_size = stove_size
         self.counter_size = counter_size
 
@@ -42,6 +45,11 @@ class OvercookedEnvironment:
 
         self.actions = self.get_actions()
         self.transition = self.get_transition()
+
+        self.chef_reward = self.chef_reward()
+        self.leader_reward = self.leader_reward()
+
+        self.nextSt_list, self.nextPro_list = self.stotrans_list()
 
     def get_states(self):
         """
@@ -157,7 +165,7 @@ class OvercookedEnvironment:
                 if burner == "burned":
                     new_stove_state[i] = "empty"
                     break
-        return new_stove_state
+        return tuple(new_stove_state), state[1]
 
     @staticmethod
     def get_state_after_move_food(state):
@@ -379,7 +387,7 @@ class OvercookedEnvironment:
         # Reward function of the chef who is paid for food being cooked (moved to the counter from the stove)
         # Define the reward function of the MDP
         # Reward[state][action] = r
-        reward = dict(zip(gw.states, [dict(zip(gw.actions, [0 for _ in gw.actions])) for _ in gw.states]))
+        reward = dict(zip(self.states, [dict(zip(self.actions, [0 for _ in self.actions])) for _ in self.states]))
         for state in self.states:
             stove_state = state[0]
             for action in self.actions:
@@ -391,7 +399,7 @@ class OvercookedEnvironment:
 
     def leader_reward(self):
         # Reward function of the leader who provides the side payments to incentivize the chef
-        reward = dict(zip(gw.states, [dict(zip(gw.actions, [0 for _ in gw.actions])) for _ in gw.states]))
+        reward = dict(zip(self.states, [dict(zip(self.actions, [0 for _ in self.actions])) for _ in self.states]))
         for state in self.states:
             counter_state = state[1]
             for action in self.actions:
@@ -404,17 +412,14 @@ class OvercookedEnvironment:
                 num_of_plates_with_food = sum([1 for plate in counter_state if plate == "warm" or plate == "cold"])
                 for plate in counter_state:
                     if plate == "warm":
-                        reward[state][action] += (self.deliver_probability / num_of_plates_with_food)\
+                        reward[state][action] += (self.deliver_probability / num_of_plates_with_food) \
                                                  * self.warm_food_delivered_reward
                     elif plate == "cold":
-                        reward[state][action] += (self.deliver_probability / num_of_plates_with_food)\
+                        reward[state][action] += (self.deliver_probability / num_of_plates_with_food) \
                                                  * self.cold_food_delivered_reward
         return reward
 
-
-"""
-Add some essential functions, starting from here.
-"""
+    # Add some essential functions, starting from here.
     def getcore(self, V, st, act):
         core = 0
         for st_, pro in self.transition[st][act].items():
@@ -422,13 +427,16 @@ Add some essential functions, starting from here.
                 core += pro * V[self.states.index(st_)]
         return core
 
-    def get_policy_entropy(self, reward, flag):
+    def init_value(self):
+        # Initial the value to be all 0
+        return np.zeros(len(self.states))
+
+    def get_policy_entropy(self, flag):
         threshold = 0.0001
         if flag == 0:
-            reward = self.reward_l
+            reward = self.leader_reward
         else:
-            self.update_reward(reward)
-            reward = self.reward
+            reward = self.chef_reward
         V = self.init_value()
         V1 = V.copy()
         policy = {}
@@ -446,7 +454,7 @@ Add some essential functions, starting from here.
             for st in self.states:
                 Q_theta = []
                 for act in self.actions:
-                    core = (self.reward[st][act] + self.gamma * self.getcore(V1, st, act)) / self.tau
+                    core = (reward[st][act] + self.gamma * self.getcore(V1, st, act)) / self.tau
                     # Q[st][act] = np.exp(core)
                     Q_theta.append(core)
                 Q_sub = Q_theta - np.max(Q_theta)
@@ -478,24 +486,23 @@ Add some essential functions, starting from here.
                 transition_pro[st][act] = pro_list
         return transition_list, transition_pro
 
-    def generate_sample(self, pi):
+    def getInit(self):
+        I = np.zeros(len(self.states))
+        I[12] = 1
+        return I
+
+    def generate_sample(self, pi, max_trajectory_length=10):
         traj = []
-        st_index = np.random.choice(len(self.states), 1, p=self.init)[0]
+        st_index = np.random.choice(len(self.states), 1, p=self.getInit())[0]
         st = self.states[st_index]
-        act_index = np.random.choice(len(self.actions), 1, p=pi[st])[0]
-        act = self.actions[act_index]
-        traj.append(st)
-        traj.append(act)
-        next_st = self.one_step_transition(st, act)
-        while next_st != "Sink":
-            st = next_st
-            # st_index = self.states.index(st)
-            act_index = np.random.choice(len(self.actions), 1, p=pi[st])[0]
-            act = self.actions[act_index]
+        trajectory_length = 0
+        while trajectory_length < max_trajectory_length:
+            act = random.choices(list(pi[st].keys()), weights=pi[st].values(), k=1)[0]
             traj.append(st)
             traj.append(act)
-            next_st = self.one_step_transition(st, act)
-        traj.append(next_st)
+            st = self.one_step_transition(st, act)
+            trajectory_length += 1
+        traj.append(st)
         return traj
 
     def one_step_transition(self, st, act):
@@ -508,9 +515,9 @@ Add some essential functions, starting from here.
         # Flag is used to identify whether it is leader's reward or follower
         # Flag = 0 represents leader, Flag = 1 represents follower
         if flag == 0:
-            reward = self.reward_l
+            reward = self.leader_reward
         else:
-            reward = self.reward
+            reward = self.chef_reward
         st = traj[0]
         act = traj[1]
         if len(traj) >= 4:
@@ -520,33 +527,19 @@ Add some essential functions, starting from here.
         return r
 
 
-def initial_MDP(stove_size, counter_size):
-    GridW = OvercookedEnvironment(stove_size, counter_size)
-    reward = GridW.reward_Goal_Obstacle()  # Initialize reward function
-    pi = GridW.getpolicy_deter(reward)
-    return GridW, pi
-
-
 def main():
-    stove_size = 3
-    counter_size = 3
-    GridWorld, Policy = initial_MDP(stove_size, counter_size)
-    return GridWorld, Policy
-
-
-if __name__ == "__main__":
+    stove_size = 2
+    counter_size = 2
     bp = 0.1
     cp = 0.2
     dp = 0.3
-    gw = OvercookedEnvironment(2, 2, bp, cp, dp)
-    print(gw.chef_reward()[(("empty", "empty"), ("empty", "empty"))])
-    # for state in gw.transition:
-    #     print(
-    #         f"original_state: {state}\n transitions: {gw.transition[state]['add_food']}\n\n"
-    #     )
-    # for state in gw.transition:
-    #     total_prob = sum([gw.transition[state]["move_food"][new_state]
-    #                       for new_state in gw.transition[state]["move_food"]])
-    #     if abs(total_prob-1) > 0.01:
-    #         print(
-    #             f"total_probability: {total_prob}\n initial_state: {state}\n transitions: {gw.transition[state]['move_food']}\n\n")
+    environment = OvercookedEnvironment(stove_size, counter_size, bp, cp, dp, 1, 0.3, 1, 0.5)
+    # test_state = (("burned", "burned"), ("empty", "empty"))
+    # print(environment.get_transition()[test_state]["clear_burned_food"])
+    # print(OvercookedEnvironment.get_state_after_remove_burned(test_state))
+    V, pi = environment.get_policy_entropy(flag=1)
+    print(environment.generate_sample(pi, max_trajectory_length=2))
+
+
+if __name__ == "__main__":
+    main()
