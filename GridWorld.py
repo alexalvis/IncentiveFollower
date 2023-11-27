@@ -186,7 +186,7 @@ class GridWorld:
             for st in self.states:
                 Q_theta = []
                 for act in self.actions:
-                    core = (self.reward[st][act] + self.gamma * self.getcore(V1, st, act)) / self.tau
+                    core = (reward[st][act] + self.gamma * self.getcore(V1, st, act)) / self.tau
                     # Q[st][act] = np.exp(core)
                     Q_theta.append(core)
                 Q_sub = Q_theta - np.max(Q_theta)
