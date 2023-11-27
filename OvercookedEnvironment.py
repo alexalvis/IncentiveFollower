@@ -390,11 +390,13 @@ class OvercookedEnvironment:
         reward = dict(zip(self.states, [dict(zip(self.actions, [0 for _ in self.actions])) for _ in self.states]))
         for state in self.states:
             stove_state = state[0]
+            counter_state = state[1]
             for action in self.actions:
-                if "cooking" in stove_state and action == "move_food":
+                if "cooking" in stove_state and "empty" in counter_state and action == "move_food":
                     reward[state][action] = self.cook_food_reward
                 if "burned" in stove_state:
-                    reward[state][action] = self.burned_food_penalty
+                    num_burned = sum([1 for burner in stove_state if burner == "burned"])
+                    reward[state][action] = num_burned * self.burned_food_penalty
         return reward
 
     def leader_reward(self):
@@ -436,6 +438,7 @@ class OvercookedEnvironment:
         if flag == 0:
             reward = self.leader_reward
         else:
+            # reward = self.update_reward(reward)
             reward = self.chef_reward
         V = self.init_value()
         V1 = V.copy()
@@ -526,19 +529,31 @@ class OvercookedEnvironment:
             return reward[st][act]
         return r
 
+    def print_sample(self, sample):
+        for i in range(0, len(sample), 2):
+            if i+1 < len(sample):
+                print(f"State: {sample[i]} - Action: {sample[i + 1]}")
+            else:
+                print(f"State: {sample[i]}")
+        print(f"Final reward: {self.reward_traj(sample, 1)}")
+
 
 def main():
     stove_size = 2
     counter_size = 2
-    bp = 0.1
-    cp = 0.2
-    dp = 0.3
-    environment = OvercookedEnvironment(stove_size, counter_size, bp, cp, dp, 1, 0.3, 1, 0.5)
+    burn_prob = 0.1
+    cold_prob = 0.2
+    deliver_prob = 0.3
+    environment = OvercookedEnvironment(stove_size, counter_size, burn_prob, cold_prob, deliver_prob, 10, -1, 15, 5)
     # test_state = (("burned", "burned"), ("empty", "empty"))
     # print(environment.get_transition()[test_state]["clear_burned_food"])
     # print(OvercookedEnvironment.get_state_after_remove_burned(test_state))
     V, pi = environment.get_policy_entropy(flag=1)
-    print(environment.generate_sample(pi, max_trajectory_length=2))
+    sample = environment.generate_sample(pi, max_trajectory_length=10)
+
+    environment.print_sample(sample)
+    state = (('cooking', 'burned'), ('empty', 'warm'))
+    print(f"policy: {pi[state]}")
 
 
 if __name__ == "__main__":
