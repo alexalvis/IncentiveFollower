@@ -10,6 +10,8 @@ import numpy as np
 import itertools
 import copy
 
+from GradientCal import GC
+
 
 class OvercookedEnvironment:
     def __init__(self, stove_size, counter_size, burn_probability, cold_probability, deliver_probability,
@@ -46,10 +48,16 @@ class OvercookedEnvironment:
         self.actions = self.get_actions()
         self.transition = self.get_transition()
 
-        self.chef_reward = self.chef_reward()
-        self.leader_reward = self.leader_reward()
+        self.chef_reward = self.initial_chef_reward()
+        self.leader_reward = self.initial_leader_reward()
 
         self.nextSt_list, self.nextPro_list = self.stotrans_list()
+
+        self.x = np.zeros(len(self.states) * len(self.actions))
+        self.modify_list = []
+
+        self.init = self.getInit()
+
 
     def get_states(self):
         """
@@ -383,7 +391,7 @@ class OvercookedEnvironment:
         print("Transition is correct")
         return True
 
-    def chef_reward(self):
+    def initial_chef_reward(self):
         # Reward function of the chef who is paid for food being cooked (moved to the counter from the stove)
         # Define the reward function of the MDP
         # Reward[state][action] = r
@@ -399,7 +407,7 @@ class OvercookedEnvironment:
                     reward[state][action] = num_burned * self.burned_food_penalty
         return reward
 
-    def leader_reward(self):
+    def initial_leader_reward(self):
         # Reward function of the leader who provides the side payments to incentivize the chef
         reward = dict(zip(self.states, [dict(zip(self.actions, [0 for _ in self.actions])) for _ in self.states]))
         for state in self.states:
@@ -433,12 +441,13 @@ class OvercookedEnvironment:
         # Initial the value to be all 0
         return np.zeros(len(self.states))
 
-    def get_policy_entropy(self, flag):
+    def get_policy_entropy(self, reward, flag):
+        # TODO how do we determine what to pass for reward?
         threshold = 0.0001
         if flag == 0:
             reward = self.leader_reward
         else:
-            # reward = self.update_reward(reward)
+            self.update_reward(reward)
             reward = self.chef_reward
         V = self.init_value()
         V1 = V.copy()
@@ -489,9 +498,46 @@ class OvercookedEnvironment:
                 transition_pro[st][act] = pro_list
         return transition_list, transition_pro
 
+    def state_action_2_x_index(self, state, action):
+        x_index = self.get_states().index(state) * self.get_actions().index(action)
+        return x_index
+
+    def update_reward(self, reward):
+        # Update follower's reward
+        if len(reward) > 0:
+            self.chef_reward = {}
+            i = 0
+            for st in self.states:
+                self.chef_reward[st] = {}
+                for act in self.actions:
+                    self.chef_reward[st][act] = reward[i]
+                    i += 1
+        else:
+            self.chef_reward = self.initial_chef_reward()
+
+    def policy_evaluation(self, reward, flag, policy):
+        threshold = 0.00001
+        if flag == 0:
+            reward = self.leader_reward
+        else:
+            self.update_reward(reward)
+            reward = self.chef_reward
+        V = self.init_value()
+        delta = np.inf
+        while delta > threshold:
+            V1 = V.copy()
+            for st in self.states:
+                temp = 0
+                for act in self.actions:
+                    if act in policy[st].keys():
+                        temp += policy[st][act] * (reward[st][act] + self.gamma * self.getcore(V1, st, act))
+                V[self.states.index(st)] = temp
+            delta = np.max(abs(V-V1))
+        return V
+
     def getInit(self):
         I = np.zeros(len(self.states))
-        I[12] = 1
+        I[0] = 1
         return I
 
     def generate_sample(self, pi, max_trajectory_length=10):
@@ -500,10 +546,10 @@ class OvercookedEnvironment:
         st = self.states[st_index]
         trajectory_length = 0
         while trajectory_length < max_trajectory_length:
-            act = random.choices(list(pi[st].keys()), weights=pi[st].values(), k=1)[0]
+            act_index = np.random.choice(len(self.actions), 1, p = pi[st])[0]
             traj.append(st)
-            traj.append(act)
-            st = self.one_step_transition(st, act)
+            traj.append(self.actions[act_index])
+            st = self.one_step_transition(st, self.actions[act_index])
             trajectory_length += 1
         traj.append(st)
         return traj
@@ -548,12 +594,27 @@ def main():
     # test_state = (("burned", "burned"), ("empty", "empty"))
     # print(environment.get_transition()[test_state]["clear_burned_food"])
     # print(OvercookedEnvironment.get_state_after_remove_burned(test_state))
-    V, pi = environment.get_policy_entropy(flag=1)
-    sample = environment.generate_sample(pi, max_trajectory_length=10)
 
-    environment.print_sample(sample)
-    state = (('cooking', 'burned'), ('empty', 'warm'))
-    print(f"policy: {pi[state]}")
+    # V, pi = environment.get_policy_entropy(reward=None, flag=0)
+    # sample = environment.generate_sample(pi, max_trajectory_length=10)
+
+    # environment.print_sample(sample)
+
+    # This is the function used to generate small transition MDP example.
+    V, policy = environment.get_policy_entropy([], 1)
+    # Learning rate influence the result from the convergence aspect. Small learning rate wll make the convergence criteria satisfy too early.
+    lr_x = 0.005  # The learning rate of side-payment
+    modifylist = [144]  # The action reward you can modify
+    epsilon = 1e-6  # Convergence threshold
+    weight = 1  # weight of the cost
+    approximate_flag = 0  # Whether we use trajectory to approximate policy. 0 represents exact policy, 1 represents approximate policy
+    GradientCal = GC(environment, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
+    x_res = GradientCal.SGD(N=200)
+    print(x_res)
+
+    # print(environment.get_states()[0])
+    # state = (('cooking', 'burned'), ('warm', 'empty'))
+    # print(environment.state_action_2_x_index(state, "deliver"))
 
 
 if __name__ == "__main__":

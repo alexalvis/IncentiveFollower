@@ -17,11 +17,11 @@ class GC:
         self.st_len = len(mdp.states)
         self.act_len = len(mdp.actions)
         self.x_size = self.st_len * self.act_len
-        self.base_reward = reward2list(mdp.reward, mdp.states, mdp.actions)
+        self.base_reward = reward2list(mdp.chef_reward, mdp.states, mdp.actions)
         self.x = np.zeros(self.x_size)
-        # self.x[48] = 1.2
-        self.x[40] = 2
-        self.x[116] = 1
+        self.x[144] = 1.2
+        # self.x[40] = 2
+        # self.x[116] = 1
         self.lr_x = lr_x
         self.tau = self.mdp.tau
         self.policy = policy_convert(policy, mdp.actions)           #self.policy in the form of pi[st]= [pro1, pro2, ...]   #Leader's perspective policy
@@ -236,7 +236,7 @@ def MDP_example():
     modifylist = [48]  #The action reward you can modify
     epsilon = 1e-6   #Convergence threshold
     weight = 0  #weight of the cost
-    approximate_flag = 1  #Whether we use trajectory to approximate policy. 0 represents exact policy, 1 represents approximate policy
+    approximate_flag = 0  #Whether we use trajectory to approximate policy. 0 represents exact policy, 1 represents approximate policy
     GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
     x_res = GradientCal.SGD(N = 200)
     print(x_res)
@@ -252,6 +252,7 @@ def GridW_example():
     GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
     x_res = GradientCal.SGD(N = 200)
     print(x_res)
+
 if __name__ == "__main__":
     # MDP_example()
     GridW_example()

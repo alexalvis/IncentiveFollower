@@ -100,7 +100,7 @@ class GridWorld:
         return np.zeros(len(self.states))
     
     def update_reward(self, reward = []):
-        #Update follower's reward
+        # Update follower's reward
         if len(reward) >0:
             self.reward = {}
             i = 0
