@@ -232,13 +232,13 @@ def MDP_example():
     mdp = MDP.create_mdp()
     V, policy = mdp.get_policy_entropy([], 1)
     #Learning rate influence the result from the convergence aspect. Small learning rate wll make the convergence criteria satisfy too early.
-    lr_x = 0.01 #The learning rate of side-payment
+    lr_x = 0.02 #The learning rate of side-payment
     modifylist = [48]  #The action reward you can modify
     epsilon = 1e-6   #Convergence threshold
     weight = 0  #weight of the cost
     approximate_flag = 0  #Whether we use trajectory to approximate policy. 0 represents exact policy, 1 represents approximate policy
     GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
-    x_res = GradientCal.SGD(N = 200)
+    x_res = GradientCal.SGD(N = 50)
     print(x_res)
 
 def GridW_example():
@@ -254,5 +254,5 @@ def GridW_example():
     print(x_res)
 
 if __name__ == "__main__":
-    # MDP_example()
-    GridW_example()
+    MDP_example()
+    # GridW_example()
