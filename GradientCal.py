@@ -19,9 +19,7 @@ class GC:
         self.x_size = self.st_len * self.act_len
         self.base_reward = reward2list(mdp.chef_reward, mdp.states, mdp.actions)
         self.x = np.zeros(self.x_size)
-        self.x[144] = 1.2
-        # self.x[40] = 2
-        # self.x[116] = 1
+        # self.x[144] = 1.2
         self.lr_x = lr_x
         self.tau = self.mdp.tau
         self.policy = policy_convert(policy, mdp.actions)           #self.policy in the form of pi[st]= [pro1, pro2, ...]   #Leader's perspective policy
@@ -194,6 +192,8 @@ class GC:
         policy_c = policy_convert(policy, self.mdp.actions)   #exact policy
         self.update_policy(policy, N)   #exact or approximate policy, depends on flag
         itcount = 1
+
+        # changed_set = set()
         while delta > self.epsilon:
             self.dJ_dx(N, policy_c)    #
             J_new, policy = self.J_func()   # exact policy
@@ -205,6 +205,13 @@ class GC:
             print("delta:", delta)
             J_old = J_new
             # print(f"{itcount}th iteration")
+
+            # non_zero = [i for i, n in enumerate(self.x) if n != 0]
+            #
+            # changed_set.update(non_zero)
+            # print(changed_set)
+
+            # print(self.x)
             itcount += 1
             if itcount % 100 == 0:
                 print(f'{itcount}th iteration, x is {self.x}')

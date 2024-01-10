@@ -54,6 +54,7 @@ class OvercookedEnvironment:
         self.nextSt_list, self.nextPro_list = self.stotrans_list()
 
         self.x = np.zeros(len(self.states) * len(self.actions))
+        self.state_action_list = self.get_state_action_list()
         self.modify_list = []
 
         self.init = self.getInit()
@@ -498,9 +499,20 @@ class OvercookedEnvironment:
                 transition_pro[st][act] = pro_list
         return transition_list, transition_pro
 
+    def get_state_action_list(self):
+        state_action_list = []
+        for st in self.get_states():
+            for act in self.get_actions():
+                state_action_list.append(f"{st}_{act}")
+
+        return state_action_list
+
     def state_action_2_x_index(self, state, action):
-        x_index = self.get_states().index(state) * self.get_actions().index(action)
+        x_index = self.state_action_list.index(f"{state}_{action}")
         return x_index
+
+    def x_index_2_state_action(self, index):
+        return self.state_action_list[index]
 
     def update_reward(self, reward):
         # Update follower's reward
@@ -584,13 +596,44 @@ class OvercookedEnvironment:
         print(f"Final reward: {self.reward_traj(sample, 1)}")
 
 
+def run_experiment(environment):
+
+    # This is the function used to generate small transition MDP example.
+    V, policy = environment.get_policy_entropy([], 1)
+    # Learning rate influence the result from the convergence aspect. Small learning rate wll make the convergence criteria satisfy too early.
+    lr_x = 0.01  # The learning rate of side-payment
+    # modifylist = [144]  # The action reward you can modify
+    # modifylist = [1, 8, 18, 19, 31, 38, 167]
+    # modifylist = [i for i in range(len(environment.get_state_action_list()))]
+    # Allow side payments for delivery
+    modifylist = [i for i in range(len(environment.get_state_action_list())) if environment.get_state_action_list()[i][-7:] == "deliver"]
+    epsilon = 1e-5  # Convergence threshold
+    weight = 1  # weight of the cost
+    approximate_flag = 0  # Whether we use trajectory to approximate policy. 0 represents exact policy, 1 represents approximate policy
+    GradientCal = GC(environment, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
+    for n in modifylist:
+        # Set initial side payment values
+        GradientCal.x[n] = 0.1
+    x_res = GradientCal.SGD(N=200)
+    print(x_res)
+    for i, n in enumerate(x_res):
+        if n != 0:
+            print(f"index: {i} value: {n}")
+
+
 def main():
-    stove_size = 2
-    counter_size = 2
-    burn_prob = 0.1
-    cold_prob = 0.2
-    deliver_prob = 0.3
-    environment = OvercookedEnvironment(stove_size, counter_size, burn_prob, cold_prob, deliver_prob, 10, -1, 15, 5)
+    environment = OvercookedEnvironment(stove_size=2, counter_size=2, burn_probability=0.1, cold_probability=0.2,
+                                        deliver_probability=0.0, cook_food_reward=10, burned_food_penalty=-1,
+                                        warm_food_delivered_reward=50, cold_food_delivered_reward=5)
+    run_experiment(environment)
+    # print(environment.x_index_2_state_action(1))
+    # print(environment.x_index_2_state_action(8))
+    # print(environment.x_index_2_state_action(18))
+    # print(environment.x_index_2_state_action(19))
+    # print(environment.x_index_2_state_action(31))
+    # print(environment.x_index_2_state_action(38))
+    # print(environment.x_index_2_state_action(167))
+
     # test_state = (("burned", "burned"), ("empty", "empty"))
     # print(environment.get_transition()[test_state]["clear_burned_food"])
     # print(OvercookedEnvironment.get_state_after_remove_burned(test_state))
@@ -600,17 +643,7 @@ def main():
 
     # environment.print_sample(sample)
 
-    # This is the function used to generate small transition MDP example.
-    V, policy = environment.get_policy_entropy([], 1)
-    # Learning rate influence the result from the convergence aspect. Small learning rate wll make the convergence criteria satisfy too early.
-    lr_x = 0.005  # The learning rate of side-payment
-    modifylist = [144]  # The action reward you can modify
-    epsilon = 1e-6  # Convergence threshold
-    weight = 1  # weight of the cost
-    approximate_flag = 0  # Whether we use trajectory to approximate policy. 0 represents exact policy, 1 represents approximate policy
-    GradientCal = GC(environment, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
-    x_res = GradientCal.SGD(N=200)
-    print(x_res)
+
 
     # print(environment.get_states()[0])
     # state = (('cooking', 'burned'), ('warm', 'empty'))
