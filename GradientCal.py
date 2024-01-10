@@ -10,6 +10,7 @@ import MDP
 import math
 import Sample
 import GridWorld as GW
+import pickle
 
 class GC:
     def __init__(self, mdp, lr_x, policy, epsilon, modify_list, weight, approximate_flag):
@@ -19,7 +20,7 @@ class GC:
         self.x_size = self.st_len * self.act_len
         self.base_reward = reward2list(mdp.reward, mdp.states, mdp.actions)
         self.x = np.zeros(self.x_size)
-        self.x[48] = 1.1
+        self.x[48] = 2
         # self.x[40] = 2
         # self.x[116] = 1
         self.lr_x = lr_x
@@ -194,11 +195,15 @@ class GC:
         policy_c = policy_convert(policy, self.mdp.actions)   #exact policy
         self.update_policy(policy, N)   #exact or approximate policy, depends on flag
         itcount = 1
-        while delta > self.epsilon:
+        # while delta > self.epsilon:
+        Jlist = []
+        Jlist.append(J_old)
+        while itcount <= 200:
             self.dJ_dx(N, policy_c)    #
             J_new, policy = self.J_func()   # exact policy
             policy_c = policy_convert(policy, self.mdp.actions)   #exact policy
             print("J_new:", J_new)
+            Jlist.append(J_new)
             #update it to new policy
             self.update_policy(policy, N)
             delta = abs(J_new - J_old)
@@ -208,7 +213,15 @@ class GC:
             itcount += 1
             if itcount % 100 == 0:
                 print(f'{itcount}th iteration, x is {self.x}')
+        save_data(Jlist)
         return self.x
+
+def save_data(data):
+    filename = "Jlist_modelfree200.pkl"
+    file = open(filename, 'wb')
+    pickle.dump(data, file)
+    file.close()
+    
 
 def policy_convert(pi, action_list):
     #Convert a policy from pi[st][act] = pro to pi[st] = [pro1, pro2, ...]
@@ -235,10 +248,10 @@ def MDP_example():
     lr_x = 0.02 #The learning rate of side-payment
     modifylist = [48]  #The action reward you can modify
     epsilon = 1e-6   #Convergence threshold
-    weight = 0  #weight of the cost
+    weight = 0.2  #weight of the cost
     approximate_flag = 1 #Whether we use trajectory to approximate policy. 0 represents exact policy, 1 represents approximate policy
     GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
-    x_res = GradientCal.SGD(N = 50)
+    x_res = GradientCal.SGD(N = 200) 
     print(x_res)
 
 def GridW_example():
