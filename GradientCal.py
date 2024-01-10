@@ -10,6 +10,7 @@ import MDP
 import math
 import Sample
 import GridWorld as GW
+import GridWorldV2 as GW2
 import pickle
 
 class GC:
