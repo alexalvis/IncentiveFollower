@@ -194,6 +194,7 @@ class GC:
         itcount = 1
 
         # changed_set = set()
+        x_history = []
         while delta > self.epsilon:
             self.dJ_dx(N, policy_c)    #
             J_new, policy = self.J_func()   # exact policy
@@ -211,11 +212,19 @@ class GC:
             # changed_set.update(non_zero)
             # print(changed_set)
 
+            # Print state_action pairs with non-zero side payment
+            for i, side_payment in enumerate(self.x):
+                if side_payment != 0:
+                    print(f"{self.mdp.x_index_2_state_action(i)}: {side_payment}")
             # print(self.x)
+            x_history.append(self.x)
             itcount += 1
             if itcount % 100 == 0:
                 print(f'{itcount}th iteration, x is {self.x}')
-        return self.x
+            if itcount == 600:
+                print(f"Stopping at itcount {itcount}")
+                break
+        return self.x, x_history
 
 def policy_convert(pi, action_list):
     #Convert a policy from pi[st][act] = pro to pi[st] = [pro1, pro2, ...]

@@ -8,9 +8,6 @@ import random
 
 import numpy as np
 import itertools
-import copy
-
-from GradientCal import GC
 
 
 class OvercookedEnvironment:
@@ -58,7 +55,6 @@ class OvercookedEnvironment:
         self.modify_list = []
 
         self.init = self.getInit()
-
 
     def get_states(self):
         """
@@ -220,6 +216,16 @@ class OvercookedEnvironment:
                 if plate == "warm":
                     new_counter_state[i] = "empty"
                     break
+        # if "warm" in counter_state:
+        #     for i, plate in enumerate(new_counter_state):
+        #         if plate == "warm":
+        #             new_counter_state[i] = "empty"
+        #             break
+        # elif "cold" in counter_state:
+        #     for i, plate in enumerate(new_counter_state):
+        #         if plate == "cold":
+        #             new_counter_state[i] = "empty"
+        #             break
         new_state = (state[0], tuple(new_counter_state))
         return new_state
 
@@ -403,6 +409,8 @@ class OvercookedEnvironment:
             for action in self.actions:
                 if "cooking" in stove_state and "empty" in counter_state and action == "move_food":
                     reward[state][action] = self.cook_food_reward
+                # if "cooking" in stove_state and action == "move_food":
+                #     reward[state][action] = self.cook_food_reward
                 if "burned" in stove_state:
                     num_burned = sum([1 for burner in stove_state if burner == "burned"])
                     reward[state][action] = num_burned * self.burned_food_penalty
@@ -596,36 +604,11 @@ class OvercookedEnvironment:
         print(f"Final reward: {self.reward_traj(sample, 1)}")
 
 
-def run_experiment(environment):
-
-    # This is the function used to generate small transition MDP example.
-    V, policy = environment.get_policy_entropy([], 1)
-    # Learning rate influence the result from the convergence aspect. Small learning rate wll make the convergence criteria satisfy too early.
-    lr_x = 0.01  # The learning rate of side-payment
-    # modifylist = [144]  # The action reward you can modify
-    # modifylist = [1, 8, 18, 19, 31, 38, 167]
-    # modifylist = [i for i in range(len(environment.get_state_action_list()))]
-    # Allow side payments for delivery
-    modifylist = [i for i in range(len(environment.get_state_action_list())) if environment.get_state_action_list()[i][-7:] == "deliver"]
-    epsilon = 1e-5  # Convergence threshold
-    weight = 1  # weight of the cost
-    approximate_flag = 0  # Whether we use trajectory to approximate policy. 0 represents exact policy, 1 represents approximate policy
-    GradientCal = GC(environment, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
-    for n in modifylist:
-        # Set initial side payment values
-        GradientCal.x[n] = 0.1
-    x_res = GradientCal.SGD(N=200)
-    print(x_res)
-    for i, n in enumerate(x_res):
-        if n != 0:
-            print(f"index: {i} value: {n}")
 
 
-def main():
-    environment = OvercookedEnvironment(stove_size=2, counter_size=2, burn_probability=0.1, cold_probability=0.2,
-                                        deliver_probability=0.0, cook_food_reward=10, burned_food_penalty=-1,
-                                        warm_food_delivered_reward=50, cold_food_delivered_reward=5)
-    run_experiment(environment)
+
+
+# def main():
     # print(environment.x_index_2_state_action(1))
     # print(environment.x_index_2_state_action(8))
     # print(environment.x_index_2_state_action(18))
@@ -646,9 +629,9 @@ def main():
 
 
     # print(environment.get_states()[0])
-    # state = (('cooking', 'burned'), ('warm', 'empty'))
+    # state = (('empty', 'empty'), ('warm', 'empty'))
     # print(environment.state_action_2_x_index(state, "deliver"))
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
