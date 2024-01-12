@@ -186,7 +186,7 @@ class GC:
         self.policy = policy_convert(policy, self.mdp.actions)
         self.sample.generate_traj(N, self.policy)
         
-    def SGD(self, N):
+    def SGD(self, N, max_iterations=-1):
         delta = np.inf
         J_old, policy = self.J_func()   #policy is exact policy
         policy_c = policy_convert(policy, self.mdp.actions)   #exact policy
@@ -221,7 +221,7 @@ class GC:
             itcount += 1
             if itcount % 100 == 0:
                 print(f'{itcount}th iteration, x is {self.x}')
-            if itcount == 600:
+            if max_iterations != -1 and itcount > max_iterations:
                 print(f"Stopping at itcount {itcount}")
                 break
         return self.x, x_history

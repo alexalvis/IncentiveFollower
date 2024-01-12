@@ -1,12 +1,13 @@
-import datetime
+import time
 import pickle
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 from OvercookedEnvironment import OvercookedEnvironment
 from GradientCal import GC
 
 
-def run_experiment(environment):
+def run_experiment(environment, max_iterations=-1):
     # This is the function used to generate small transition MDP example.
     V, policy = environment.get_policy_entropy([], 1)
     # Learning rate influence the result from the convergence aspect. Small learning rate wll make the convergence criteria satisfy too early.
@@ -24,24 +25,28 @@ def run_experiment(environment):
     for n in modifylist:
         GradientCal.x[n] = 1
     # GradientCal.x[18] = 5 # state 18 = (empty, empty), (warm, empty)
-    x_res, x_history = GradientCal.SGD(N=50)
+    x_res, x_history = GradientCal.SGD(N=50, max_iterations=max_iterations)
 
     return x_res, x_history
 
 
-def save_experiment(x_res, x_history, path=f"experiments/experiment_{datetime.datetime.now}"):
+def save_experiment(x_res, x_history, path=f"experiment"):
+    if not os.path.exists(path):
+        os.mkdir(path)
     # Make graph of side payments vs iteration
-    plt.plot(np.arange(0, len(x_history)), x_history)
-    plt.xticks(np.arange(0, len(x_history)))
-    plt.savefig(fname=f"{path}/side_payment_graph_.png")
+    plt.plot(np.arange(0, len(x_history)), x_history, color="blue")
+    tick_interval = int(round(len(x_history)/10, -1)) if int(round(len(x_history)/10, -1)) > 0 else 5
+    plt.xticks(np.arange(0, len(x_history), tick_interval))
+
+    plt.savefig(f"{path}\side_payment_graph.png")
 
     # Save final side payment array
-    with open(f"{path}/side_payments.txt", 'w') as file:
+    with open(f"{path}\side_payments.txt", 'w') as file:
         for x in x_res:
-            file.write(x)
+            file.write(f"{str(x)}\n")
 
     # Pickle and save full side payment history
-    with open(f"{path}/side_payment_history", 'wb') as file:
+    with open(f"{path}\side_payment_history", 'wb') as file:
         pickle.dump(x_history, file)
 
 
@@ -50,8 +55,9 @@ def main():
                                         deliver_probability=0.2, cook_food_reward=10, burned_food_penalty=-10,
                                         warm_food_delivered_reward=50, cold_food_delivered_reward=5)
 
-    x_res, x_history = run_experiment(environment)
-    save_experiment(x_res, x_history)
+    x_res, x_history = run_experiment(environment, max_iterations=20)
+    path = f"experiments\{time.strftime('%Y_%m_%d_%H_%M_%S')}"
+    save_experiment(x_res, x_history, path=path)
 
 
 if __name__ == "__main__":
