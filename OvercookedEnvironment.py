@@ -111,6 +111,7 @@ class OvercookedEnvironment:
                         # in the case where there is an open burner the transitions are the same as wait but one of the
                         # "empty" burner's becomes "cooking"
                         if "empty" in new_stove_state:
+                            # Add food to stove
                             stove_state_with_added_food = list(new_stove_state)
                             for i, burner in enumerate(stove_state_with_added_food):
                                 if burner == "empty":
@@ -131,14 +132,31 @@ class OvercookedEnvironment:
                                                                                  self.cold_probability,
                                                                                  self.deliver_probability)
                 elif action == "move_food":
-                    origin_state_with_food_moved = OvercookedEnvironment.get_state_after_move_food(state)
-                    possible_states = self.get_wait_states(origin_state_with_food_moved)
-                    for new_state in possible_states:
-                        trans[state][action][new_state] = \
-                            OvercookedEnvironment.get_transition_probability(origin_state_with_food_moved, new_state,
-                                                                             self.burn_probability,
-                                                                             self.cold_probability,
-                                                                             self.deliver_probability)
+                    # If there is room in the counter calculate the probabilities with the food removed and then add
+                    # warm food after so there is no chance for food to turn cold in the same turn it is moved.
+                    # To allow for the possibility of food turning cold in the same turn it is moved, comment out the if
+                    # part of the if statement and just keep the else.
+                    if "empty" in counter_state:
+                        origin_state_with_food_removed = OvercookedEnvironment.get_state_cooking_removed(state)
+                        possible_states = self.get_wait_states(origin_state_with_food_removed)
+                        for new_state in possible_states:
+                            new_state_with_warm_added = OvercookedEnvironment.add_warm_food(new_state)
+                            trans[state][action][new_state_with_warm_added] = \
+                                OvercookedEnvironment.get_transition_probability(origin_state_with_food_removed,
+                                                                                 new_state,
+                                                                                 self.burn_probability,
+                                                                                 self.cold_probability,
+                                                                                 self.deliver_probability)
+                    else:
+                        origin_state_with_food_moved = OvercookedEnvironment.get_state_after_move_food(state)
+                        possible_states = self.get_wait_states(origin_state_with_food_moved)
+                        for new_state in possible_states:
+                            trans[state][action][new_state] = \
+                                OvercookedEnvironment.get_transition_probability(origin_state_with_food_moved,
+                                                                                 new_state,
+                                                                                 self.burn_probability,
+                                                                                 self.cold_probability,
+                                                                                 self.deliver_probability)
                 elif action == "deliver":
                     origin_state_without_plate = OvercookedEnvironment.get_state_after_deliver(state)
                     possible_states = self.get_wait_states(origin_state_without_plate)
@@ -159,7 +177,45 @@ class OvercookedEnvironment:
                                                                              self.cold_probability,
                                                                              self.deliver_probability)
         self.check_trans(trans)
+        # test_state = ('empty', 'cooking'), ('warm', 'warm')
+        # print(trans[test_state]["move_food"])
+        # print(OvercookedEnvironment.get_state_cooking_removed(test_state))
+        # print(self.get_wait_states(test_state))
+        # print(OvercookedEnvironment.get_state_after_move_food(test_state))
         return trans
+
+    @staticmethod
+    def get_state_cooking_removed(state):
+        stove_state = state[0]
+        counter_state = state[1]
+
+        new_stove_state = list(stove_state)
+        new_counter_state = list(counter_state)
+        if "cooking" in stove_state and "empty" in counter_state:
+            # remove food from stove
+            for i, burner in enumerate(new_stove_state):
+                if burner == "cooking":
+                    new_stove_state[i] = "empty"
+                    break
+
+        state_with_cooking_removed = (tuple(new_stove_state), tuple(new_counter_state))
+        return state_with_cooking_removed
+
+    @staticmethod
+    def add_warm_food(state):
+        stove_state = state[0]
+        counter_state = state[1]
+
+        new_stove_state = list(stove_state)
+        new_counter_state = list(counter_state)
+
+        for i, plate in enumerate(new_counter_state):
+            if plate == "empty":
+                new_counter_state[i] = "warm"
+                break
+
+        state_with_food_added = (tuple(new_stove_state), tuple(new_counter_state))
+        return state_with_food_added
 
     @staticmethod
     def get_state_after_remove_burned(state):
@@ -389,14 +445,16 @@ class OvercookedEnvironment:
         return possible_new_stove_states
 
     def check_trans(self, trans):
+        trans_correct = True
         # Check if the transitions are constructed correctly
         for st in trans.keys():
             for act in trans[st].keys():
                 if abs(sum(trans[st][act].values()) - 1) > 0.01:
-                    print("st is:", st, " act is:", act, " sum is:", sum(self.stotrans[st][act].values()))
-                    return False
-        print("Transition is correct")
-        return True
+                    print("st is:", st, " act is:", act, " sum is:", sum(trans[st][act].values()))
+                    trans_correct = False
+        if trans_correct:
+            print("Transition is correct")
+        return trans_correct
 
     def initial_chef_reward(self):
         # Reward function of the chef who is paid for food being cooked (moved to the counter from the stove)
@@ -451,7 +509,6 @@ class OvercookedEnvironment:
         return np.zeros(len(self.states))
 
     def get_policy_entropy(self, reward, flag):
-        # TODO how do we determine what to pass for reward?
         threshold = 0.0001
         if flag == 0:
             reward = self.leader_reward
@@ -566,7 +623,7 @@ class OvercookedEnvironment:
         st = self.states[st_index]
         trajectory_length = 0
         while trajectory_length < max_trajectory_length:
-            act_index = np.random.choice(len(self.actions), 1, p = pi[st])[0]
+            act_index = np.random.choice(len(self.actions), 1, p=list(pi[st].values()))[0]
             traj.append(st)
             traj.append(self.actions[act_index])
             st = self.one_step_transition(st, self.actions[act_index])
