@@ -10,6 +10,7 @@ import MDP
 import math
 import Sample
 import GridWorld as GW
+import copy
 
 class GC:
     def __init__(self, mdp, lr_x, policy, epsilon, modify_list, weight, approximate_flag):
@@ -19,7 +20,6 @@ class GC:
         self.x_size = self.st_len * self.act_len
         self.base_reward = reward2list(mdp.chef_reward, mdp.states, mdp.actions)
         self.x = np.zeros(self.x_size)
-        # self.x[144] = 1.2
         self.lr_x = lr_x
         self.tau = self.mdp.tau
         self.policy = policy_convert(policy, mdp.actions)           #self.policy in the form of pi[st]= [pro1, pro2, ...]   #Leader's perspective policy
@@ -187,6 +187,11 @@ class GC:
         self.sample.generate_traj(N, self.policy)
         
     def SGD(self, N, max_iterations=-1):
+        x_history = []
+        J_history = []
+        # Append initial value of weights
+        x_history.append(tuple(self.x))
+
         delta = np.inf
         J_old, policy = self.J_func()   #policy is exact policy
         policy_c = policy_convert(policy, self.mdp.actions)   #exact policy
@@ -194,11 +199,13 @@ class GC:
         itcount = 1
 
         # changed_set = set()
-        x_history = []
         while delta > self.epsilon:
+            x_history.append(tuple(self.x))
+            J_history.append(J_old)
             self.dJ_dx(N, policy_c)    #
             J_new, policy = self.J_func()   # exact policy
             policy_c = policy_convert(policy, self.mdp.actions)   #exact policy
+            print("itcount", itcount)
             print("J_new:", J_new)
             #update it to new policy
             self.update_policy(policy, N)
@@ -213,18 +220,17 @@ class GC:
             # print(changed_set)
 
             # Print state_action pairs with non-zero side payment
-            for i, side_payment in enumerate(self.x):
-                if side_payment != 0:
-                    print(f"{self.mdp.x_index_2_state_action(i)}: {side_payment}")
+            # for i, side_payment in enumerate(self.x):
+            #     if side_payment != 0:
+            #         print(f"{self.mdp.x_index_2_state_action(i)}: {side_payment}")
             # print(self.x)
-            x_history.append(self.x)
             itcount += 1
             if itcount % 100 == 0:
                 print(f'{itcount}th iteration, x is {self.x}')
-            if max_iterations != -1 and itcount > max_iterations:
+            if max_iterations != -1 and itcount >= max_iterations:
                 print(f"Stopping at itcount {itcount}")
                 break
-        return self.x, x_history
+        return self.x, x_history, J_history
 
 def policy_convert(pi, action_list):
     #Convert a policy from pi[st][act] = pro to pi[st] = [pro1, pro2, ...]

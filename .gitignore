@@ -1,5 +1,7 @@
 /.idea/
+/experiments/
 __pycache__/GradientCal.cpython-310.pyc
 __pycache__/GridWorld.cpython-310.pyc
 __pycache__/MDP.cpython-310.pyc
 __pycache__/Sample.cpython-310.pyc
+__pycache__/OvercookedEnvironment.cpython-310.pyc
