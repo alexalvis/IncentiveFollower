@@ -232,6 +232,14 @@ class GC:
                 break
         return self.x, x_history, J_history
 
+    def get_reward(self):
+        i = 0
+        reward = dict(zip(self.mdp.states, [dict(zip(self.mdp.actions, [0 for _ in self.mdp.actions])) for _ in self.mdp.states]))
+        for st in self.mdp.states:
+            for act in self.mdp.actions:
+                reward[st][act] = self.reward_sidepay()[i]
+                i += 1
+        return reward
 def policy_convert(pi, action_list):
     #Convert a policy from pi[st][act] = pro to pi[st] = [pro1, pro2, ...]
     pi_list = {}

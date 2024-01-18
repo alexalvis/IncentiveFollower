@@ -618,6 +618,26 @@ class OvercookedEnvironment:
         return I
 
     def generate_sample(self, pi, max_trajectory_length=10):
+        """
+        Use this function when working with Sample.py
+        """
+        traj = []
+        st_index = np.random.choice(len(self.states), 1, p=self.getInit())[0]
+        st = self.states[st_index]
+        trajectory_length = 0
+        while trajectory_length < max_trajectory_length:
+            act_index = np.random.choice(len(self.actions), 1, p=pi[st])[0]
+            traj.append(st)
+            traj.append(self.actions[act_index])
+            st = self.one_step_transition(st, self.actions[act_index])
+            trajectory_length += 1
+        traj.append(st)
+        return traj
+
+    def generate_experiment_sample(self, pi, max_trajectory_length=10):
+        """
+        Use this function when pi the policy from get_policy_entropy
+        """
         traj = []
         st_index = np.random.choice(len(self.states), 1, p=self.getInit())[0]
         st = self.states[st_index]
