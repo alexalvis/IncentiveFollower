@@ -325,16 +325,16 @@ def createGridWorldBarrier_new2():
     IDSlist = [(0, 4), (1, 2), (2, 3), (3, 3), (5, 4)]
     gridworld = GridWorld(6, 6, 0.1, fakelist, goallist, IDSlist, barrierlist, gamma, tau)
     reward = []
-    V, policy = gridworld.get_policy_entropy(reward, 1)
-    V_def = gridworld.policy_evaluation(reward, 0, policy)
-    return gridworld, V_def, policy
-    # return gridworld
+    # V, policy = gridworld.get_policy_entropy(reward, 1)
+    # V_def = gridworld.policy_evaluation(reward, 0, policy)
+    # return gridworld, V_def, policy
+    return gridworld
 
     
     
 if __name__ == "__main__":
-    gridworld, V_def, policy = createGridWorldBarrier_new2()
-    # gridworld = createGridWorldBarrier_new2()
+    # gridworld, V_def, policy = createGridWorldBarrier_new2()
+    gridworld = createGridWorldBarrier_new2()
     
     # print(gridworld.reward)
     # for st in gridworld.F:

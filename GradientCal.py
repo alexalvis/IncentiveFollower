@@ -21,9 +21,10 @@ class GC:
         self.x_size = self.st_len * self.act_len
         self.base_reward = reward2list(mdp.reward, mdp.states, mdp.actions)
         self.x = np.zeros(self.x_size)
-        self.x[48] = 2
-        # self.x[40] = 2
-        # self.x[116] = 1
+        # self.x[48] = 0.3
+        self.x[40] = 8.8
+        # self.x[116] = 0
+        # self.x[15] = 0.5
         self.lr_x = lr_x
         self.tau = self.mdp.tau
         self.policy = policy_convert(policy, mdp.actions)           #self.policy in the form of pi[st]= [pro1, pro2, ...]   #Leader's perspective policy
@@ -42,11 +43,11 @@ class GC:
     def J_func(self):
         reward_s = self.reward_sidepay()
         V, policy = self.mdp.get_policy_entropy(reward_s, flag = 1)
-        
+        V_attacker = V[0]
         #Need to evaluate defender's reward using this policy
         V_leader = self.mdp.policy_evaluation([], 0, policy)
         J = self.mdp.init.dot(V_leader) + self.h_func()
-        return J, policy
+        return J, policy, V_attacker
 
     def h_func(self):
         #Define the h function
@@ -192,16 +193,17 @@ class GC:
         
     def SGD(self, N):
         delta = np.inf
-        J_old, policy = self.J_func()   #policy is exact policy
+        J_old, policy, V_att = self.J_func()   #policy is exact policy
         policy_c = policy_convert(policy, self.mdp.actions)   #exact policy
         self.update_policy(policy, N)   #exact or approximate policy, depends on flag
         itcount = 1
-        # while delta > self.epsilon:
+        
         Jlist = []
         Jlist.append(J_old)
         while itcount <= 200:
+        # while delta > self.epsilon:
             self.dJ_dx(N, policy_c)    #
-            J_new, policy = self.J_func()   # exact policy
+            J_new, policy, V_att = self.J_func()   # exact policy
             policy_c = policy_convert(policy, self.mdp.actions)   #exact policy
             print("J_new:", J_new)
             Jlist.append(J_new)
@@ -215,6 +217,8 @@ class GC:
             if itcount % 100 == 0:
                 print(f'{itcount}th iteration, x is {self.x}')
         save_data(Jlist)
+        print("Attacker's value is:", V_att)
+        # print(policy)
         return self.x
 
 def save_data(data):
@@ -249,8 +253,8 @@ def MDP_example():
     lr_x = 0.02 #The learning rate of side-payment
     modifylist = [48]  #The action reward you can modify
     epsilon = 1e-6   #Convergence threshold
-    weight = 0.2  #weight of the cost
-    approximate_flag = 1 #Whether we use trajectory to approximate policy. 0 represents exact policy, 1 represents approximate policy
+    weight = 0.5  #weight of the cost
+    approximate_flag = 0#Whether we use trajectory to approximate policy. 0 represents exact policy, 1 represents approximate policy
     GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
     x_res = GradientCal.SGD(N = 200) 
     print(x_res)
@@ -266,6 +270,19 @@ def GridW_example():
     GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
     x_res = GradientCal.SGD(N = 200)
     print(x_res)
+    
+def GridW_example_V2():
+    mdp = GW2.createGridWorldBarrier_new2()
+    V, policy = mdp.get_policy_entropy([], 1)
+    lr_x = 0.02
+    modifylist = [40]
+    # modifylist = [15]
+    epsilon = 1e-6
+    weight = 0.3
+    approximate_flag = 1
+    GradientCal = GC(mdp, lr_x, policy, epsilon, modifylist, weight, approximate_flag)
+    x_res = GradientCal.SGD(N = 200)
+    print(x_res)
 if __name__ == "__main__":
-    MDP_example()
-    # GridW_example()
+    # MDP_example()
+    GridW_example_V2()
