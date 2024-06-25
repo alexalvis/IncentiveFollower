@@ -296,8 +296,8 @@ class GridWorld:
                 index_st = self.states.index(st)
                 for act in self.actions:
                     for st_ in self.states:
-                        if st in self.stotrans[st_][act].keys():
-                            Z_new[index_st] += gamma * Z_old[self.states.index(st_)] * policy[st_][act] * self.stotrans[st_][act][st]
+                        if st in self.transition[st_][act].keys():
+                            Z_new[index_st] += gamma * Z_old[self.states.index(st_)] * policy[st_][act] * self.transition[st_][act][st]
             
             itcount += 1
 #            print(Z)
