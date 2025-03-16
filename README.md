@@ -3,7 +3,7 @@
 This project is the companion code for TMLR paper: 
 
  
-- H. Ma, S. Han, A. Hemida, C. Kamhoua, and J. Fu, “Adaptive Incentive Design for Markov Decision Processes with Unknown Rewards,” Transaction on Machine Learning Research, to appear, 2025.
+- H. Ma, S. Han, A. Hemida, C. Kamhoua, and J. Fu, “Adaptive Incentive Design for Markov Decision Processes with Unknown Rewards,” Transaction on Machine Learning Research, to appear, 2025. pre-print: https://openreview.net/forum?id=Rwf31BYTAU
 
 
 ## Key Features
