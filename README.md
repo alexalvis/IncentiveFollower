@@ -96,12 +96,19 @@ IncentiveFollower/
 
 ## Contributing Guidelines
 
-(No explicit contributing guidelines were found in the provided codebase.)
+This project does not allow modifications from external contributors. If you wish to report issues or suggest improvements, please open an issue in the repository.
+
+
+### Downloading and Reusing Code
+This project is open-source, and you are free to download and reuse the code under the following conditions:
+- Follow the terms specified in the [LICENSE](LICENSE) file.
+- Give appropriate credit to the original authors.
+- Do not hold the authors liable for any issues that arise from using the code.
 
 
 ## License Information
 
-(No explicit license information was found in the provided codebase.)
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Error Messages
 
