@@ -1,6 +1,9 @@
-# IncentiveFollower: A Reinforcement Learning Project
+# Adaptive Incentive Design for Markov Decision Processes with Unknown Rewards
 
-This project explores the application of reinforcement learning to model a leader-follower interaction, where a leader incentivizes a follower to achieve a desired outcome.  The project includes implementations using both a simple MDP and a more complex GridWorld environment. Model-free and model-based approaches are explored.
+This project is the companion code for TMLR paper: 
+
+ 
+- H. Ma, S. Han, A. Hemida, C. Kamhoua, and J. Fu, “Adaptive Incentive Design for Markov Decision Processes with Unknown Rewards,” Transaction on Machine Learning Research, to appear, 2025.
 
 
 ## Key Features
